@@ -17,11 +17,12 @@ namespace PuppeteerLib
         /// </returns>
         public static async Task<string> TryToDownloadBrowserAsync(string path)
         {
-            using var browserFetcher = new BrowserFetcher(new BrowserFetcherOptions { Path = path, Browser = SupportedBrowser.Chromium });
+            using var browserFetcher = new BrowserFetcher(new BrowserFetcherOptions
+                { Path = path, Browser = SupportedBrowser.Chromium });
 
             if (browserFetcher.GetInstalledBrowsers().FirstOrDefault() is InstalledBrowser ib)
             {
-                string exePath = ib.GetExecutablePath(); 
+                string exePath = ib.GetExecutablePath();
                 LogGreen($"Found installed browser: {exePath}");
                 return exePath;
             }
@@ -61,7 +62,8 @@ namespace PuppeteerLib
                         Log("100% ", ConsoleColor.Green);
                     }
 
-                    string mb = $"({Math.Round(args.BytesReceived / 1024000.0f, 2)}/{Math.Round(args.TotalBytesToReceive / 1024000.0f, 2)} mb)";
+                    string mb =
+                        $"({Math.Round(args.BytesReceived / 1024000.0f, 2)}/{Math.Round(args.TotalBytesToReceive / 1024000.0f, 2)} mb)";
                     l += mb.Length;
                     Log(mb, ConsoleColor.Yellow);
                     Task.Delay(10).Wait();
@@ -91,7 +93,11 @@ namespace PuppeteerLib
                     Headless = true,
                     Timeout = 1_200_000, // 15 minutes
                     ExecutablePath = path,
-                    IgnoredDefaultArgs = new[] { "--disable-extensions" } // https://github.com/puppeteer/puppeteer/blob/main/docs/troubleshooting.md#chrome-headless-doesnt-launch-on-windows
+                    IgnoredDefaultArgs =
+                        new[]
+                        {
+                            "--disable-extensions"
+                        } // https://github.com/puppeteer/puppeteer/blob/main/docs/troubleshooting.md#chrome-headless-doesnt-launch-on-windows
                 };
 
                 var stealthPlugin = new StealthPlugin(new StealthHardwareConcurrencyOptions(1));
@@ -139,7 +145,8 @@ namespace PuppeteerLib
         //}
 
 
-        private static async Task<PuppeteerResponse> RequestAsync(IBrowser browser, HttpMethod method, string url, string authToken, string contentType, dynamic? data = null)
+        private static async Task<PuppeteerResponse> RequestAsync(IBrowser browser, HttpMethod method, string url,
+            string authToken, string contentType, dynamic? data = null)
         {
             await using var page = await browser.NewPageAsync();
             try
@@ -163,11 +170,13 @@ namespace PuppeteerLib
             => await RequestAsync(browser, HttpMethod.Get, url, authToken, "application/json");
 
 
-        public static async Task<PuppeteerResponse> RequestPostAsync(this IBrowser browser, string url, string authToken, dynamic? data = null, string contentType = "application/json")
+        public static async Task<PuppeteerResponse> RequestPostAsync(this IBrowser browser, string url,
+            string authToken, dynamic? data = null, string contentType = "application/json")
             => await RequestAsync(browser, HttpMethod.Post, url, authToken, contentType, data);
 
 
-        public static async Task<FetchResponse> FetchRequestAsync(IPage page, string url, string method, string authToken, dynamic? data = null, string contentType = "application/json")
+        public static async Task<FetchResponse> FetchRequestAsync(IPage page, string url, string method,
+            string authToken, dynamic? data = null, string contentType = "application/json")
         {
             try
             {
@@ -182,8 +191,9 @@ namespace PuppeteerLib
                                 $"          'content-type': '{contentType}', " +
                                 $"          'origin': '{url}', " +
                                 $"          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'" +
-                                "       }" + (data is null ? "" :
-                                    $"    , body: JSON.stringify({JsonConvert.SerializeObject(data)}) ") +
+                                "       }" + (data is null
+                                    ? ""
+                                    : $"    , body: JSON.stringify({JsonConvert.SerializeObject(data)}) ") +
                                 "   });" +
                                 "   var responseStatus = response.status;" +
                                 "   var responseContent = await response.text();" +
@@ -203,7 +213,8 @@ namespace PuppeteerLib
         }
 
 
-        public static async Task<PuppeteerResponse> RequestPostWithDownloadAsync(this IBrowser browser, int requestId, string url, string authToken, dynamic? data = null)
+        public static async Task<PuppeteerResponse> RequestPostWithDownloadAsync(this IBrowser browser, int requestId,
+            string url, string authToken, dynamic? data = null)
         {
             // "download" is a temporary file name where response content is saved
             string requestPath = $"{CD}{SC}puppeteer-temps{SC}{requestId}";
@@ -259,9 +270,10 @@ namespace PuppeteerLib
                 return null;
             }
         }
-        
-        
-        private static async void ContinueRequest(RequestEventArgs args, dynamic? data, HttpMethod method, string contentType, string authToken)
+
+
+        private static async void ContinueRequest(RequestEventArgs args, dynamic? data, HttpMethod method,
+            string contentType, string authToken)
         {
             var r = args.Request;
             var payload = CreateRequestPayload(method, data, contentType, authToken);
@@ -269,14 +281,19 @@ namespace PuppeteerLib
             await r.ContinueAsync(payload);
         }
 
-        private static Payload CreateRequestPayload(HttpMethod method, dynamic? data, string contentType, string caiToken)
+        private static Payload CreateRequestPayload(HttpMethod method, dynamic? data, string contentType,
+            string caiToken)
         {
-            var headers = new Dictionary<string, string> {
+            var headers = new Dictionary<string, string>
+            {
                 { "authorization", $"Token {caiToken}" },
                 { "accept", "application/json, text/plain, */*" },
                 { "accept-encoding", "gzip, deflate, br" },
                 { "content-type", contentType },
-                { "user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36" }
+                {
+                    "user-agent",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
+                }
             };
 
             string? serializedData = data is string or null ? data : (string?)JsonConvert.SerializeObject(data);
@@ -293,7 +310,8 @@ namespace PuppeteerLib
         public static async Task<bool> TryToLeaveQueueAsync(this IPage page)
         {
             try
-            {   // Try for 2 minutes
+            {
+                // Try for 2 minutes
                 for (int i = 0; i < 24; i++)
                 {
                     var response = await page.ReloadAsync();
