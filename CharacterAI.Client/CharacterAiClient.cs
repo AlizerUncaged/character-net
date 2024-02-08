@@ -21,21 +21,28 @@ namespace CharacterAI.Client
         /// </summary>
         //private readonly Dictionary<IBrowser, int> _browsersPool = new();
         private IBrowser _browser = null!;
+
         private IPage _page = null!;
-        
+        private string? dir = null, exe = null;
+
         /// <summary>
         /// Create new integration with CharacterAI
         /// </summary>
         public CharacterAiClient(string? customBrowserDirectory = null, string? customBrowserExecutablePath = null)
         {
-            var dir = string.IsNullOrWhiteSpace(customBrowserDirectory) ? null : customBrowserDirectory;
-            var exe = string.IsNullOrWhiteSpace(customBrowserExecutablePath) ? null : customBrowserExecutablePath;
+            dir = string.IsNullOrWhiteSpace(customBrowserDirectory) ? null : customBrowserDirectory;
+            exe = string.IsNullOrWhiteSpace(customBrowserExecutablePath) ? null : customBrowserExecutablePath;
 
             _browserExecutablePath = exe ?? TryToDownloadBrowserAsync(dir ?? $"{CD}{SC}puppeteer-chrome").Result;
         }
 
+        public async Task DownloadBrowserAsync()
+        {
+            await TryToDownloadBrowserAsync(dir ?? $"{CD}{SC}puppeteer-chrome");
+        }
+
         public async Task LaunchBrowserAsync()
-        {            
+        {
             _browser = (await LaunchBrowserInstanceAsync(_browserExecutablePath))!;
             _page = await _browser.NewPageAsync();
             await _page.GoToAsync("https://plus.character.ai/search");
@@ -91,8 +98,14 @@ namespace CharacterAI.Client
 
                 foreach (var proc in allProcessesInDir)
                 {
-                    try { proc.Kill(); }
-                    catch (Exception e) { LogRed($"(Warning) Failed to kill \"{proc.Id}\"", e); }
+                    try
+                    {
+                        proc.Kill();
+                    }
+                    catch (Exception e)
+                    {
+                        LogRed($"(Warning) Failed to kill \"{proc.Id}\"", e);
+                    }
                 }
             }
             catch (Exception e)
@@ -114,12 +127,14 @@ namespace CharacterAI.Client
 
             // Fetch new answer ("perform swipe").
             if (parentMsgUuId is not null)
-            { // When parent_msg_id is present, character will generate new response for a last message.
+            {
+                // When parent_msg_id is present, character will generate new response for a last message.
                 contentDynamic.parent_msg_uuid = parentMsgUuId;
             }
             // Or set new (swiped) answer as one to reply on.
             else if (primaryMsgUuId is not null)
-            { // Provide primary_msg_id to point out which character's response you've chosen.
+            {
+                // Provide primary_msg_id to point out which character's response you've chosen.
                 contentDynamic.primary_msg_uuid = primaryMsgUuId;
                 // (seen_msg_ids[] is also required, either it just won't work, but I didn't bother to collect
                 //  every single swiped message, just fill it with chosen one)
@@ -128,7 +143,7 @@ namespace CharacterAI.Client
 
             string sub = plusMode ? "plus" : "beta";
             string url = $"https://{sub}.character.ai/chat/streaming/";
-            
+
             FetchResponse fetchResponse = await FetchRequestAsync(_page, url, "POST", authToken, contentDynamic);
             if (fetchResponse.InQueue)
             {
@@ -142,7 +157,7 @@ namespace CharacterAI.Client
             }
 
             var fetchResult = new CharacterResponse(fetchResponse);
-            
+
             if (!fetchResponse.IsBlocked)
                 return fetchResult;
 
@@ -152,7 +167,9 @@ namespace CharacterAI.Client
             // Fallback on slower but more stable request method
             try
             {
-                var puppeteerResponse = await PuppeteerLib.PuppeteerLib.RequestPostWithDownloadAsync(_browser, requsetId, url, authToken, contentDynamic);
+                var puppeteerResponse =
+                    await PuppeteerLib.PuppeteerLib.RequestPostWithDownloadAsync(_browser, requsetId, url, authToken,
+                        contentDynamic);
                 return new CharacterResponse(puppeteerResponse); // OK
             }
             catch (Exception e)
@@ -180,10 +197,11 @@ namespace CharacterAI.Client
             else if (response.IsSuccessful)
             {
                 var parsed = JsonConvert.DeserializeObject<dynamic>(response.Content!)
-                    ?? throw new Exception("No content");
+                             ?? throw new Exception("No content");
 
                 if (parsed.character is JArray)
-                    throw new Exception($"Failed to get character info. Perhaps the character is private?{(parsed.error is string e ? $" | Error: {e}" : "")}");
+                    throw new Exception(
+                        $"Failed to get character info. Perhaps the character is private?{(parsed.error is string e ? $" | Error: {e}" : "")}");
 
                 character = parsed.character;
             }
@@ -201,7 +219,8 @@ namespace CharacterAI.Client
             string sub = plusMode ? "plus" : "beta";
             string url = $"https://{sub}.character.ai/chat/history/continue/";
 
-            var data = new FormUrlEncodedContent(new Dictionary<string, string> {
+            var data = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
                 { "character_external_id", characterId }
             });
 
@@ -212,7 +231,6 @@ namespace CharacterAI.Client
 
             await Task.Delay(5000);
             return await CreateNewChatAsync(characterId, authToken, plusMode);
-
         }
 
         /// <summary>
@@ -255,7 +273,7 @@ namespace CharacterAI.Client
         {
             string sub = plusMode ? "plus" : "beta";
             string url = $"https://{sub}.character.ai/chat/characters/search/?query={query}";
-            
+
             var response = await _browser.RequestGetAsync(url, authToken);
 
             return new SearchResponse(response, query);
@@ -266,7 +284,8 @@ namespace CharacterAI.Client
         /// Some of these are useless, some seems to be not really used yet in actual API, some do simply have unknown purpose,
         /// thus they are either commented or set with default value taken from cai site.
         /// </summary>
-        private static dynamic BasicCallContent(string characterId, string characterTgt, string msg, string? imgPath, string historyId)
+        private static dynamic BasicCallContent(string characterId, string characterTgt, string msg, string? imgPath,
+            string historyId)
         {
             dynamic content = new ExpandoObject();
 
@@ -317,7 +336,8 @@ namespace CharacterAI.Client
             {
                 requestId = new Random().Next(32767);
                 lock (_heavyRequestsQueue)
-                    if (!_heavyRequestsQueue.Contains(requestId)) break;
+                    if (!_heavyRequestsQueue.Contains(requestId))
+                        break;
             }
 
             lock (_heavyRequestsQueue)
@@ -394,12 +414,13 @@ namespace CharacterAI.Client
         #region IDisposable implementation with finalizer
 
         private bool _disposed;
+
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);   
+            GC.SuppressFinalize(this);
         }
-        
+
         protected virtual void Dispose(bool disposing)
         {
             if (_disposed) return;
@@ -410,13 +431,17 @@ namespace CharacterAI.Client
                 {
                     EnsureAllChromeInstancesAreKilled();
                 }
-                catch { }
+                catch
+                {
+                }
 
                 try
                 {
                     Directory.Delete($"{CD}{SC}puppeteer-temps", true);
                 }
-                catch { }
+                catch
+                {
+                }
 
                 try
                 {
@@ -426,11 +451,14 @@ namespace CharacterAI.Client
                     _browser = null!;
                     _browserExecutablePath = null!;
                 }
-                catch { }
+                catch
+                {
+                }
             }
 
             _disposed = true;
         }
+
         #endregion
     }
 }

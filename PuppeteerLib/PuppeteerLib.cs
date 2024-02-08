@@ -4,6 +4,7 @@ using PuppeteerExtraSharp.Plugins.ExtraStealth;
 using PuppeteerExtraSharp;
 using PuppeteerSharp;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using PuppeteerSharp.BrowserData;
 using PuppeteerLib.Models;
 using static SharedUtils.Common;
@@ -20,7 +21,7 @@ namespace PuppeteerLib
             using var browserFetcher = new BrowserFetcher(new BrowserFetcherOptions
                 { Path = path, Browser = SupportedBrowser.Chromium });
 
-            if (browserFetcher.GetInstalledBrowsers().FirstOrDefault() is InstalledBrowser ib)
+            if (browserFetcher.GetInstalledBrowsers().FirstOrDefault() is { } ib)
             {
                 string exePath = ib.GetExecutablePath();
                 LogGreen($"Found installed browser: {exePath}");
@@ -30,49 +31,22 @@ namespace PuppeteerLib
             Log($"Downloading browser...\nPath: ");
             Log($"{path}\n", ConsoleColor.Yellow);
 
-            int top = Console.GetCursorPosition().Top;
-            int progress = 0;
-
-            object locker = new();
             browserFetcher.DownloadProgressChanged += (sender, args) =>
             {
-                lock (locker)
-                {
-                    var pp = args.ProgressPercentage;
-                    if (pp <= progress) return;
-
-                    progress = pp;
-                    Console.SetCursorPosition(0, top);
-
-                    string logProgress = $"Progress: [{new string('=', pp / 2)}{new string(' ', 50 - pp / 2)}] ";
-                    int l = logProgress.Length;
-
-                    Console.Write(new string('\b', Console.WindowWidth));
-                    Log(logProgress);
-
-                    if (pp < 100)
-                    {
-                        string oo = $"{pp}% ";
-                        l += oo.Length;
-                        Log(oo);
-                    }
-                    else
-                    {
-                        l += 5;
-                        Log("100% ", ConsoleColor.Green);
-                    }
-
-                    string mb =
-                        $"({Math.Round(args.BytesReceived / 1024000.0f, 2)}/{Math.Round(args.TotalBytesToReceive / 1024000.0f, 2)} mb)";
-                    l += mb.Length;
-                    Log(mb, ConsoleColor.Yellow);
-                    Task.Delay(10).Wait();
-                }
+                PuppeteerDownloadChanged?.Invoke(sender, args.ProgressPercentage);
             };
+            PuppeteerDownloadStarted?.Invoke(null, EventArgs.Empty);
+
             var browser = await browserFetcher.DownloadAsync(BrowserTag.Latest);
+
+            PuppeteerDownloadEnded?.Invoke(null, EventArgs.Empty);
 
             return browser.GetExecutablePath();
         }
+
+        public static event EventHandler<int> PuppeteerDownloadChanged;
+        public static event EventHandler PuppeteerDownloadStarted;
+        public static event EventHandler PuppeteerDownloadEnded;
 
         public static async Task<IBrowser?> LaunchBrowserInstanceAsync(string path)
         {
