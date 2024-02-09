@@ -5,10 +5,9 @@ namespace SharedUtils
 {
     public static class Common
     {
-        public const string WARN_SIGN = "⚠";
-        public static readonly string CD = Directory.GetCurrentDirectory();
-        public static readonly char SC = Path.DirectorySeparatorChar;
-
+        public const string WarnSign = "⚠";
+        public static readonly string CommonDirectory = Path.Combine("puppeteer", Directory.GetCurrentDirectory());
+        public static readonly char DirectorySeparator = Path.DirectorySeparatorChar;
 
         public static void LogRed(string? title = null, Exception? e = null)
         {
@@ -33,7 +32,7 @@ namespace SharedUtils
         {
             try
             {
-                string path = $"{CD}{SC}log.txt";
+                string path = $"{CommonDirectory}{DirectorySeparator}log.txt";
                 File.AppendAllText(path, text + "\n-------------------------------------\n\n");
             }
             catch (Exception e)
@@ -41,10 +40,5 @@ namespace SharedUtils
                 LogRed("FILE LOG ERROR", e);
             }
         }
-
-        //public static void ClearTemps()
-        //{
-        //    try { Directory.Delete($"{CD}{SC}puppeteer-temps", true); } catch { }
-        //}
     }
 }

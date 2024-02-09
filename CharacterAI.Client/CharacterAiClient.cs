@@ -14,16 +14,12 @@ namespace CharacterAI.Client
     {
         private string _browserExecutablePath = null!;
         private readonly List<int> _heavyRequestsQueue = new();
-        //private readonly List<int> _liteRequestsQueue = new();
-
-        /// <summary>
-        /// Browser : Usages
-        /// </summary>
-        //private readonly Dictionary<IBrowser, int> _browsersPool = new();
-        private IBrowser _browser = null!;
+        private IBrowser? _browser = null!;
 
         private IPage _page = null!;
         private string? dir = null, exe = null;
+
+        public string? BrowserDirectory => dir;
 
         /// <summary>
         /// Create new integration with CharacterAI
@@ -33,84 +29,40 @@ namespace CharacterAI.Client
             dir = string.IsNullOrWhiteSpace(customBrowserDirectory) ? null : customBrowserDirectory;
             exe = string.IsNullOrWhiteSpace(customBrowserExecutablePath) ? null : customBrowserExecutablePath;
 
-            _browserExecutablePath = exe ?? TryToDownloadBrowserAsync(dir ?? $"{CD}{SC}puppeteer-chrome").Result;
+            _browserExecutablePath =
+                exe ?? TryToDownloadBrowserAsync(dir ?? $"{CommonDirectory}{DirectorySeparator}puppeteer-chrome")
+                    .Result;
         }
 
         public async Task DownloadBrowserAsync()
         {
-            await TryToDownloadBrowserAsync(dir ?? $"{CD}{SC}puppeteer-chrome");
+            await TryToDownloadBrowserAsync(dir ?? $"{CommonDirectory}{DirectorySeparator}puppeteer-chrome");
         }
 
         public async Task LaunchBrowserAsync()
         {
-            _browser = (await LaunchBrowserInstanceAsync(_browserExecutablePath))!;
+            _browser ??= (await LaunchBrowserInstanceAsync(_browserExecutablePath))!;
+
             _page = await _browser.NewPageAsync();
+
             await _page.GoToAsync("https://plus.character.ai/search");
             bool ok = false;
+
             while (!ok)
                 ok = await _page.TryToLeaveQueueAsync();
         }
 
-        //private IBrowser? GetBrowser()
-        //{
-        //    try
-        //    {
-        //        lock (_browsersPool)
-        //        {
-        //            var browser = _browsersPool.FirstOrDefault(b => b.Value < 10).Key;
-
-        //            if (browser is null)
-        //            {
-        //                browser = LaunchBrowserInstanceAsync(path: _browserExecutablePath).Result;
-
-        //                if (browser is not null)
-        //                    _browsersPool.TryAdd(browser, 0);
-        //            }
-
-        //            return browser;
-        //        }
-        //    }
-        //    catch
-        //    {
-        //        return null;
-        //    }
-        //    finally
-        //    {
-        //        lock (_browsersPool)
-        //            foreach (var browser in _browsersPool.Where(b => b.Value >= 10).Select(b => b.Key))
-        //            {
-        //                _browsersPool.Remove(browser);
-        //                Task.Run(async () => await KillBrowserInstanceAsync(browser));
-        //            }
-        //    }
-        //}
-
         public void EnsureAllChromeInstancesAreKilled()
         {
-            if (string.IsNullOrEmpty(_browserExecutablePath))
-                throw new Exception("No browser path");
-
-            try
+            foreach (var chromeProcess in PuppeteerLib.PuppeteerLib.ChromeProcesses)
             {
-                string browserDir = _browserExecutablePath[..(_browserExecutablePath.LastIndexOf(SC))];
-                var allProcessesInDir = Process.GetProcesses().Where(proc =>
-                    proc.MainModule != null && proc.MainModule.FileName.StartsWith(browserDir));
-
-                foreach (var proc in allProcessesInDir)
+                try
                 {
-                    try
-                    {
-                        proc.Kill();
-                    }
-                    catch (Exception e)
-                    {
-                        LogRed($"(Warning) Failed to kill \"{proc.Id}\"", e);
-                    }
+                    chromeProcess.Kill();
                 }
-            }
-            catch (Exception e)
-            {
-                LogRed("(Warning) Failed to kill browser instances", e);
+                catch
+                {
+                }
             }
         }
 
@@ -437,7 +389,7 @@ namespace CharacterAI.Client
 
                 try
                 {
-                    Directory.Delete($"{CD}{SC}puppeteer-temps", true);
+                    Directory.Delete($"{CommonDirectory}{DirectorySeparator}puppeteer-temps", true);
                 }
                 catch
                 {

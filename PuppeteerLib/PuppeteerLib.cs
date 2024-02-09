@@ -4,6 +4,7 @@ using PuppeteerExtraSharp.Plugins.ExtraStealth;
 using PuppeteerExtraSharp;
 using PuppeteerSharp;
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.CompilerServices;
 using PuppeteerSharp.BrowserData;
 using PuppeteerLib.Models;
@@ -33,7 +34,7 @@ namespace PuppeteerLib
 
             browserFetcher.DownloadProgressChanged += (sender, args) =>
             {
-                PuppeteerDownloadChanged?.Invoke(sender, args.ProgressPercentage);
+                PuppeteerDownloadProcessChanged?.Invoke(sender, args);
             };
             PuppeteerDownloadStarted?.Invoke(null, EventArgs.Empty);
 
@@ -44,9 +45,11 @@ namespace PuppeteerLib
             return browser.GetExecutablePath();
         }
 
-        public static event EventHandler<int> PuppeteerDownloadChanged;
+        public static event EventHandler<DownloadProgressChangedEventArgs> PuppeteerDownloadProcessChanged;
         public static event EventHandler PuppeteerDownloadStarted;
         public static event EventHandler PuppeteerDownloadEnded;
+
+        public static List<Process> ChromeProcesses = new();
 
         public static async Task<IBrowser?> LaunchBrowserInstanceAsync(string path)
         {
@@ -75,7 +78,10 @@ namespace PuppeteerLib
                 };
 
                 var stealthPlugin = new StealthPlugin(new StealthHardwareConcurrencyOptions(1));
+
                 var browser = await pex.Use(stealthPlugin).LaunchAsync(launchOptions);
+
+                ChromeProcesses.Add(browser.Process);
 
                 result = browser;
             }
@@ -88,35 +94,6 @@ namespace PuppeteerLib
 
             return result;
         }
-
-        //public static async Task<bool> KillBrowserInstanceAsync(IBrowser browser)
-        //{
-        //    bool result;
-
-        //    int pid = browser.Process.Id;
-
-        //    try
-        //    {
-        //        Process.GetProcessById(pid).Kill();
-        //        result = true;
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        LogRed($"Failed to kill process \"{pid}\"", e);
-        //        result = false;
-        //    }
-
-        //    try
-        //    {
-        //        await browser.DisposeAsync();
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        Log($"Failed to dispose browser object: {e.Message}\n");
-        //    }
-
-        //    return result;
-        //}
 
 
         private static async Task<PuppeteerResponse> RequestAsync(IBrowser browser, HttpMethod method, string url,
@@ -164,7 +141,7 @@ namespace PuppeteerLib
                                 $"          'authorization': 'Token {authToken}', " +
                                 $"          'content-type': '{contentType}', " +
                                 $"          'origin': '{url}', " +
-                                $"          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'" +
+                                $"          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.1 Safari/537.36'" +
                                 "       }" + (data is null
                                     ? ""
                                     : $"    , body: JSON.stringify({JsonConvert.SerializeObject(data)}) ") +
@@ -191,8 +168,8 @@ namespace PuppeteerLib
             string url, string authToken, dynamic? data = null)
         {
             // "download" is a temporary file name where response content is saved
-            string requestPath = $"{CD}{SC}puppeteer-temps{SC}{requestId}";
-            string downloadPath = $"{requestPath}{SC}download";
+            string requestPath = $"{CommonDirectory}{DirectorySeparator}puppeteer-temps{DirectorySeparator}{requestId}";
+            string downloadPath = $"{requestPath}{DirectorySeparator}download";
 
             // Reacrete directory
             if (Directory.Exists(requestPath)) Directory.Delete(requestPath, true);
