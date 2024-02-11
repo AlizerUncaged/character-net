@@ -32,13 +32,33 @@ namespace PuppeteerLib
             Log($"Downloading browser...\nPath: ");
             Log($"{path}\n", ConsoleColor.Yellow);
 
+            DownloadProgressChangedEventArgs? lastProgressChange = null;
+
+            bool isDownloadingBrowser = true;
+
+            _ = Task.Run(async () =>
+            {
+                while (isDownloadingBrowser)
+                {
+                    if (lastProgressChange is not null)
+                        PuppeteerDownloadProcessChangedOptimized?.Invoke(null, lastProgressChange);
+                    
+                    await Task.Delay(TimeSpan.FromSeconds(0.2));
+                }
+            });
+
             browserFetcher.DownloadProgressChanged += (sender, args) =>
             {
+                lastProgressChange = args;
+
                 PuppeteerDownloadProcessChanged?.Invoke(sender, args);
             };
+
             PuppeteerDownloadStarted?.Invoke(null, EventArgs.Empty);
 
             var browser = await browserFetcher.DownloadAsync(BrowserTag.Latest);
+
+            isDownloadingBrowser = false;
 
             PuppeteerDownloadEnded?.Invoke(null, EventArgs.Empty);
 
@@ -46,6 +66,7 @@ namespace PuppeteerLib
         }
 
         public static event EventHandler<DownloadProgressChangedEventArgs> PuppeteerDownloadProcessChanged;
+        public static event EventHandler<DownloadProgressChangedEventArgs> PuppeteerDownloadProcessChangedOptimized;
         public static event EventHandler PuppeteerDownloadStarted;
         public static event EventHandler PuppeteerDownloadEnded;
 

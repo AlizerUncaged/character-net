@@ -6,7 +6,7 @@ namespace SharedUtils
     public static class Common
     {
         public const string WarnSign = "⚠";
-        public static readonly string CommonDirectory = Path.Combine("puppeteer", Directory.GetCurrentDirectory());
+        public static readonly string CommonDirectory = Path.Combine(Directory.GetCurrentDirectory(), "Puppeteer");
         public static readonly char DirectorySeparator = Path.DirectorySeparatorChar;
 
         public static void LogRed(string? title = null, Exception? e = null)
@@ -16,6 +16,12 @@ namespace SharedUtils
 
             if (e is not null)
                 Log($"Exception details:\n{e}\n", ConsoleColor.Red);
+        }
+
+        public static string FindChromePath(string directory)
+        {
+            string[] files = Directory.GetFiles(directory, "chrome.exe", SearchOption.AllDirectories);
+            return files.FirstOrDefault();
         }
 
         public static void LogGreen(string logText)

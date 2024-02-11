@@ -15,28 +15,27 @@ namespace CharacterAI.Client
         private string _browserExecutablePath = null!;
         private readonly List<int> _heavyRequestsQueue = new();
         private IBrowser? _browser = null!;
-
+        private string dir;
         private IPage _page = null!;
-        private string? dir = null, exe = null;
-
-        public string? BrowserDirectory => dir;
 
         /// <summary>
         /// Create new integration with CharacterAI
         /// </summary>
-        public CharacterAiClient(string? customBrowserDirectory = null, string? customBrowserExecutablePath = null)
+        public CharacterAiClient()
         {
-            dir = string.IsNullOrWhiteSpace(customBrowserDirectory) ? null : customBrowserDirectory;
-            exe = string.IsNullOrWhiteSpace(customBrowserExecutablePath) ? null : customBrowserExecutablePath;
+            dir = CommonDirectory;
 
-            _browserExecutablePath =
-                exe ?? TryToDownloadBrowserAsync(dir ?? $"{CommonDirectory}{DirectorySeparator}puppeteer-chrome")
-                    .Result;
+            // _browserExecutablePath
+            //     _browserExecutablePath =
+            //         exe ?? TryToDownloadBrowserAsync(dir ?? $"{}{DirectorySeparator}puppeteer-chrome")
+            //             .Result;
         }
 
-        public async Task DownloadBrowserAsync()
+        public async Task DownloadBrowserAndStoreBrowserPathAsync()
         {
-            await TryToDownloadBrowserAsync(dir ?? $"{CommonDirectory}{DirectorySeparator}puppeteer-chrome");
+            await TryToDownloadBrowserAsync(dir);
+
+            _browserExecutablePath = FindChromePath(dir);
         }
 
         public async Task LaunchBrowserAsync()
@@ -46,7 +45,8 @@ namespace CharacterAI.Client
             _page = await _browser.NewPageAsync();
 
             await _page.GoToAsync("https://plus.character.ai/search");
-            bool ok = false;
+
+            var ok = false;
 
             while (!ok)
                 ok = await _page.TryToLeaveQueueAsync();
