@@ -54,7 +54,7 @@ namespace CharacterAI.Client
 
         public void EnsureAllChromeInstancesAreKilled()
         {
-            foreach (var chromeProcess in PuppeteerLib.PuppeteerLib.ChromeProcesses)
+            foreach (var chromeProcess in ChildProcesses)
             {
                 try
                 {

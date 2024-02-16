@@ -70,7 +70,6 @@ namespace PuppeteerLib
         public static event EventHandler PuppeteerDownloadStarted;
         public static event EventHandler PuppeteerDownloadEnded;
 
-        public static List<Process> ChromeProcesses = new();
 
         public static async Task<IBrowser?> LaunchBrowserInstanceAsync(string path)
         {
@@ -102,7 +101,7 @@ namespace PuppeteerLib
 
                 var browser = await pex.Use(stealthPlugin).LaunchAsync(launchOptions);
 
-                ChromeProcesses.Add(browser.Process);
+                ChildProcesses.Add(browser.Process);
 
                 result = browser;
             }
