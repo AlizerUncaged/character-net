@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Dynamic;
 
 namespace SharedUtils
@@ -9,8 +8,6 @@ namespace SharedUtils
         public const string WarnSign = "⚠";
         public static readonly string CommonDirectory = Path.Combine(Directory.GetCurrentDirectory(), "Puppeteer");
         public static readonly char DirectorySeparator = Path.DirectorySeparatorChar;
-        
-        public static List<Process> ChildProcesses = new();
 
         public static void LogRed(string? title = null, Exception? e = null)
         {

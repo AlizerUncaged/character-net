@@ -42,7 +42,7 @@ namespace PuppeteerLib
                 {
                     if (lastProgressChange is not null)
                         PuppeteerDownloadProcessChangedOptimized?.Invoke(null, lastProgressChange);
-                    
+
                     await Task.Delay(TimeSpan.FromSeconds(0.2));
                 }
             });
@@ -70,6 +70,7 @@ namespace PuppeteerLib
         public static event EventHandler PuppeteerDownloadStarted;
         public static event EventHandler PuppeteerDownloadEnded;
 
+        public static List<Process> ChromeProcesses = new();
 
         public static async Task<IBrowser?> LaunchBrowserInstanceAsync(string path)
         {
@@ -81,13 +82,12 @@ namespace PuppeteerLib
                 {
                     "--no-default-browser-check", "--no-sandbox", "--disable-setuid-sandbox", "--no-first-run",
                     "--single-process", "--disable-default-apps", "--disable-features=Translate", "--disable-infobars",
-                    "--disable-dev-shm-usage", "--mute-audio", "--ignore-certificate-errors", "--use-gl=egl", "--ptag"
+                    "--disable-dev-shm-usage", "--mute-audio", "--ignore-certificate-errors"
                 };
 
                 var launchOptions = new LaunchOptions()
                 {
                     Args = args,
-                    Headless = true,
                     Timeout = 1_200_000, // 15 minutes
                     ExecutablePath = path,
                     IgnoredDefaultArgs =
@@ -99,9 +99,11 @@ namespace PuppeteerLib
 
                 var stealthPlugin = new StealthPlugin(new StealthHardwareConcurrencyOptions(1));
 
+
                 var browser = await pex.Use(stealthPlugin).LaunchAsync(launchOptions);
 
-                ChildProcesses.Add(browser.Process);
+
+                ChromeProcesses.Add(browser.Process);
 
                 result = browser;
             }
